@@ -1,0 +1,42 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXUS Intelligence</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mu:#667085;--bd:#e4e7ec;--up:#067647;--dn:#b42318;--wr:#b54708}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--tx:#e8ebf0;--mu:#98a2b3;--bd:#262c36;--up:#47cd89;--dn:#f97066;--wr:#fdb022}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,sans-serif;padding:16px;max-width:1100px;margin:auto}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:24px 0 8px}.mu{color:var(--mu);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
+.v{font-size:20px;font-weight:600}.up{color:var(--up)}.dn{color:var(--dn)}.wr{color:var(--wr)}
+.m{display:flex;justify-content:space-between;font-size:12px;color:var(--mu)}svg{width:100%;height:36px;margin-top:6px}
+.t{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12px}td,th{padding:5px 8px;border-bottom:1px solid var(--bd);text-align:right}th:first-child,td:first-child{text-align:left}
+</style></head><body>
+<h1>NEXUS Intelligence</h1><div class="mu" id="meta">Carregando…</div>
+<h2>Mercados e macro</h2><div class="grid" id="cards"></div>
+<h2>Correlação de retornos diários</h2><div class="t" id="corr"></div>
+<h2>Auditoria e fontes</h2><div class="t" id="aud"></div>
+<p class="mu" id="aviso"></p>
+<script>
+const f=(x,d=2)=>x==null?'—':x.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pc=x=>x==null?'—':(x*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2,signDisplay:'exceptZero'})+'%';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function spark(p){if(p.length<2)return'';const v=p.slice(-120).map(x=>x[1]),a=Math.min(...v),b=Math.max(...v),r=b-a||1;
+const d=v.map((y,i)=>(i/(v.length-1)*100).toFixed(1)+','+(34-(y-a)/r*32).toFixed(1)).join(' ');
+return `<svg viewBox="0 0 100 36" preserveAspectRatio="none"><polyline points="${d}" fill="none" stroke="currentColor" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg>`}
+fetch('data.json').then(r=>r.json()).then(d=>{
+ document.getElementById('meta').textContent='Gerado em '+new Date(d.gerado_em).toLocaleString('pt-BR');
+ document.getElementById('aviso').textContent=d.aviso+' Dados de fontes públicas gratuitas, podem ter atraso.';
+ document.getElementById('cards').innerHTML=d.series.map(s=>{const m=s.metricas||{};
+  const cl=m.var_1d>0?'up':m.var_1d<0?'dn':'';const flag=s.status!=='ok'?`<span class="wr"> ${esc(s.status)}</span>`:'';
+  return `<div class="c"><div class="mu">${esc(s.nome)}${flag}</div><div class="v">${f(m.ultimo)}</div>
+  <div class="m"><span class="${cl}">${pc(m.var_1d)} (último período)</span><span>${esc(s.referencia||'—')}</span></div>
+  <div class="m"><span>12m ${pc(m.ret_12m)}</span><span>vol ${m.vol_anual==null?'—':pc(m.vol_anual).replace('+','')}</span></div>
+  <div class="m"><span>máx. DD ${m.max_drawdown==null?'—':pc(m.max_drawdown)}</span><span>VaR95 ${m.var95_1d==null?'—':pc(m.var95_1d).replace('+','')}</span></div>${spark(s.pontos)}</div>`}).join('');
+ const k=Object.keys(d.correlacoes.matriz);
+ document.getElementById('corr').innerHTML=k.length?`<table><tr><th>${d.correlacoes.janela_dias_comuns} dias comuns</th>${k.map(x=>`<th>${esc(x)}</th>`).join('')}</tr>`+
+  k.map(a=>`<tr><td>${esc(a)}</td>${k.map(b=>`<td>${f(d.correlacoes.matriz[a][b])}</td>`).join('')}</tr>`).join('')+'</table>':'<span class="mu">Sem dados suficientes.</span>';
+ document.getElementById('aud').innerHTML='<table><tr><th>Série</th><th>Fonte</th><th>Coletado em</th><th>Status / achados</th></tr>'+d.series.map(s=>
+  `<tr><td>${esc(s.nome)}</td><td><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.fonte)}</a></td><td>${esc(s.coletado_em)}</td><td>${esc(s.status)}${s.auditoria.map(a=>` · ${esc(a.severidade)}: ${esc(a.msg)}`).join('')}</td></tr>`).join('')+'</table>';
+}).catch(()=>{document.getElementById('meta').textContent='Ainda sem dados: rode o workflow "Atualizar dados" no GitHub Actions.'});
+</script></body></html>
