@@ -1,0 +1,34 @@
+name: Atualizar dados e publicar
+on:
+  schedule:
+    - cron: "30 21 * * 1-5"
+    - cron: "0 11 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: nexus-update
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Organizar pastas (só na primeira vez)
+        run: |
+          git config user.name "nexus-bot"; git config user.email "bot@users.noreply.github.com"
+          if [ -f build.py ]; then
+            mkdir -p nexus tests docs
+            git mv __init__.py auditor.py build.py quant.py sources.py nexus/
+            git mv test_nexus.py tests/
+            git mv index.html docs/
+            git rm -q --ignore-unmatch nexus.zip
+            git commit -m "organiza estrutura" && git push
+          fi
+      - run: python -m unittest discover -s tests
+      - run: python -m nexus.build
+      - name: Commit dos dados
+        run: |
+          git add docs/data.json
+          git diff --cached --quiet || (git commit -m "dados: $(date -u +%F)" && git push)
