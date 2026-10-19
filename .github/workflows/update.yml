@@ -1,8 +1,8 @@
 name: Atualizar dados e publicar
 on:
   schedule:
-    - cron: "30 21 * * 1-5"
-    - cron: "0 11 * * 1-5"
+    - cron: "0 11 * * 1-5"   # 08:00 Brasília
+    - cron: "0 22 * * 1-5"   # 19:00 Brasília (após o fechamento)
   workflow_dispatch:
 permissions:
   contents: write
@@ -15,17 +15,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - name: Organizar pastas (só na primeira vez)
+      - name: Organizar arquivos soltos
         run: |
           git config user.name "nexus-bot"; git config user.email "bot@users.noreply.github.com"
-          if [ -f build.py ]; then
-            mkdir -p nexus tests docs
-            git mv __init__.py auditor.py build.py quant.py sources.py nexus/
-            git mv test_nexus.py tests/
-            git mv index.html docs/
-            git rm -q --ignore-unmatch nexus.zip
-            git commit -m "organiza estrutura" && git push
-          fi
+          mkdir -p nexus tests docs
+          for f in __init__.py auditor.py build.py quant.py sources.py opportunities.py; do
+            if [ -f "$f" ]; then git mv -f "$f" nexus/; fi
+          done
+          if [ -f test_nexus.py ]; then git mv -f test_nexus.py tests/; fi
+          if [ -f index.html ]; then git mv -f index.html docs/; fi
+          git rm -q --ignore-unmatch nexus.zip
+          git diff --cached --quiet || (git commit -m "organiza estrutura" && git push)
       - run: python -m unittest discover -s tests
       - run: python -m nexus.build
       - name: Commit dos dados
