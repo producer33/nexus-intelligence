@@ -55,5 +55,37 @@ class Pipeline(unittest.TestCase):
         self.assertEqual(ser["selic_meta"]["pontos"][-1][1], 2.0)
         self.assertEqual(ser["ibov"]["status"], "erro")
 
+
+from nexus import opportunities as op
+def _serie(sid, px, status="ok"):
+    return {"id": sid, "nome": sid, "fonte": "t", "status": status, "referencia": "2026-01-01", "auditoria": [],
+            "pontos": [[f"2025-{1 + i // 28:02d}-{1 + i % 28:02d}", v] for i, v in enumerate(px)]}
+
+class Oportunidades(unittest.TestCase):
+    def test_rsi_extremos(self):
+        self.assertEqual(quant.rsi(list(range(1, 40))), 100.0)
+        self.assertLess(quant.rsi(list(range(40, 1, -1))), 1)
+        self.assertIsNone(quant.rsi([1, 2, 3]))
+    def test_sma(self):
+        self.assertEqual(quant.sma([1, 2, 3, 4], 2), 3.5)
+        self.assertIsNone(quant.sma([1], 5))
+    def test_alta_forte_nao_vira_compra_sem_ressalva_de_rsi(self):
+        a = op.analisar(_serie("x", [100 + i for i in range(260)]))
+        self.assertGreaterEqual(a["score"], 3)
+        self.assertTrue(any("sobrecomprado" in e["texto"] for e in a["evidencias"]))
+    def test_queda_forte_negativa(self):
+        a = op.analisar(_serie("x", [400 - i for i in range(260)]))
+        self.assertLessEqual(a["score"], -3)
+    def test_sem_dados_nao_inventa(self):
+        a = op.analisar({"id": "x", "nome": "x", "fonte": "t", "status": "erro", "pontos": []})
+        self.assertEqual((a["sinal"], a["score"]), ("Indisponível", None))
+    def test_desatualizado_baixa_confianca(self):
+        a = op.analisar(_serie("x", [100 + i for i in range(260)], "desatualizado"))
+        self.assertEqual(a["confianca"], "Baixa")
+    def test_classes(self):
+        self.assertEqual(op.classe(5), "Sinal técnico de compra")
+        self.assertEqual(op.classe(-5), "Sinal técnico de venda / redução")
+        self.assertEqual(op.classe(0), "Neutro / aguardar")
+
 if __name__ == "__main__":
     unittest.main()

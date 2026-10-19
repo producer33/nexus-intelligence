@@ -1,7 +1,7 @@
 """Orquestrador mínimo: coleta -> cache incremental -> métricas -> auditoria -> docs/data.json"""
 import json, os, sys
 from datetime import datetime, timezone
-from . import sources, quant, auditor
+from . import sources, quant, auditor, opportunities
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAIDA = os.path.join(RAIZ, "docs", "data.json")
@@ -49,7 +49,7 @@ def main(fetch=sources.http_json, saida=SAIDA):
     corr, n = correlacoes(series, ["ibov", "petr4", "vale3", "itub4", "sp500", "btc", "usdbrl_ptax", "ouro"])
     out = {"gerado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "aviso": "Análise informativa. Não é recomendação de investimento.",
-           "series": series, "correlacoes": {"janela_dias_comuns": n, "matriz": corr}}
+           "series": series, "oportunidades": opportunities.relatorio(series), "correlacoes": {"janela_dias_comuns": n, "matriz": corr}}
     os.makedirs(os.path.dirname(saida), exist_ok=True)
     with open(saida, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False)

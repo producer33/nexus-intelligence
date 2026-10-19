@@ -35,3 +35,18 @@ def var_historico(rets, nivel=0.95):
         return None
     s = sorted(rets)
     return -s[int((1 - nivel) * len(s))]
+
+def sma(px, n):
+    return sum(px[-n:]) / n if len(px) >= n else None
+
+def rsi(px, n=14):
+    """RSI de Wilder. None se histórico insuficiente."""
+    if len(px) <= n:
+        return None
+    d = [b - a for a, b in zip(px, px[1:])]
+    g = [max(x, 0) for x in d]; l = [max(-x, 0) for x in d]
+    ag, al = sum(g[:n]) / n, sum(l[:n]) / n
+    for i in range(n, len(d)):
+        ag = (ag * (n - 1) + g[i]) / n
+        al = (al * (n - 1) + l[i]) / n
+    return 100.0 if al == 0 else 100 - 100 / (1 + ag / al)
